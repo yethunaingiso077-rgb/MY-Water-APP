@@ -1,0 +1,141 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+void main() => runApp(const UnityMyanmarApp());
+
+class UnityMyanmarApp extends StatelessWidget {
+  const UnityMyanmarApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.teal, useMaterial3: true),
+      home: const LoginPage(),
+    );
+  }
+}
+
+// --- LOGIN PAGE ---
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  double _width = 220;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.rocket_launch, size: 80, color: Colors.teal),
+            const SizedBox(height: 20),
+            const Text("Unity Myanmar SST", 
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 40),
+            GestureDetector(
+              onTapDown: (_) => setState(() => _width = 190),
+              onTapUp: (_) => setState(() => _width = 220),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ChatPage())),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: _width, height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.teal, 
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)]
+                ),
+                child: const Center(child: Text("Start Chatting", style: TextStyle(color: Colors.white))),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- CHAT PAGE ---
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key});
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _player = AudioPlayer();
+  bool isRecording = false;
+  String? lastFilePath;
+  List<double> amplitudes = List.generate(15, (index) => 5.0);
+  Timer? _timer;
+
+  // အသံလှိုင်း လှုပ်ရှားမှု ဖန်တီးခြင်း
+  void _startWaveform() {
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      setState(() {
+        amplitudes = List.generate(15, (index) => Random().nextDouble() * 35 + 5);
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Unity SST Chat")),
+      body: Column(
+        children: [
+          Expanded(child: Center(child: Text(lastFilePath == null ? "No Message" : "Voice Message Ready!"))),
+          
+          // Waveform Display 🌊
+          if (isRecording)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: amplitudes.map((h) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: 4, height: h,
+                decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(2)),
+              )).toList(),
+            ),
+
+          const SizedBox(height: 20),
+          
+          // Record Button 🎙️
+          GestureDetector(
+            onLongPressStart: (_) async {
+              if (await _recorder.hasPermission()) {
+                setState(() => isRecording = true);
+                _startWaveform();
+                await _recorder.start(const RecordConfig(), path: 'my_voice.m4a');
+              }
+            },
+            onLongPressEnd: (_) async {
+              final path = await _recorder.stop();
+              _timer?.cancel();
+              setState(() {
+                isRecording = false;
+                lastFilePath = path;
+              });
+            },
+            child: CircleAvatar(
+              radius: 35,
+              backgroundColor: isRecording ? Colors.red : Colors.teal,
+              child: Icon(isRecording ? Icons.mic : Icons.mic_none, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+}
